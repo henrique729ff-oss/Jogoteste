@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1.0,
+      maximum-scale=1.0,user-scalable=no">
+
+<title>Block Arena Multiplayer</title>
+
+<style>
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#111;
+    font-family:Arial,sans-serif;
+}
+
+#game{
+    position:fixed;
+    inset:0;
+}
+
+canvas{
+    display:block;
+    width:100%;
+    height:100%;
+}
+
+#hud{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+}
+
+#top{
+    position:absolute;
+    top:15px;
+    left:15px;
+    color:white;
+    background:rgba(0,0,0,.45);
+    padding:10px 14px;
+    border-radius:12px;
+    font-size:14px;
+    text-shadow:0 2px 4px #000;
+}
+
+#players{
+    margin-top:4px;
+    color:#8ee7ff;
+}
+
+#crosshair{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:22px;
+    height:22px;
+    transform:translate(-50%,-50%);
+}
+
+#crosshair:before,
+#crosshair:after{
+    content:"";
+    position:absolute;
+    background:white;
+    box-shadow:0 0 3px #000;
+}
+
+#crosshair:before{
+    width:2px;
+    height:22px;
+    left:10px;
+    top:0;
+}
+
+#crosshair:after{
+    width:22px;
+    height:2px;
+    left:0;
+    top:10px;
+}
+
+#leftControls{
+    position:absolute;
+    left:22px;
+    bottom:25px;
+    width:135px;
+    height:135px;
+    pointer-events:auto;
+    touch-action:none;
+}
+
+#joystick{
+    width:135px;
+    height:135px;
+    border-radius:50%;
+    background:rgba(255,255,255,.12);
+    border:2px solid rgba(255,255,255,.28);
+    position:relative;
+}
+
+#stick{
+    position:absolute;
+    width:58px;
+    height:58px;
+    left:37px;
+    top:37px;
+    border-radius:50%;
+    background:rgba(255,255,255,.42);
+    border:2px solid rgba(255,255,255,.7);
+    transition:transform .04s linear;
+}
+
+#lookArea{
+    position:absolute;
+    right:0;
+    top:0;
+    width:58%;
+    height:100%;
+    pointer-events:auto;
+    touch-action:none;
+}
+
+#lookHint{
+    position:absolute;
+    right:20px;
+    top:50%;
+    transform:translateY(-50%);
+    color:rgba(255,255,255,.18);
+    font-size:12px;
+    pointer-events:none;
+}
+
+#jump{
+    position:absolute;
+    right:25px;
+    bottom:35px;
+    width:68px;
+    height:68px;
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,.7);
+    background:rgba(0,0,0,.4);
+    color:white;
+    font-size:27px;
+    pointer-events:auto;
+}
+
+#login{
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,.75);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    pointer-events:auto;
+}
+
+#loginBox{
+    width:min(90%,360px);
+    padding:25px;
+    border-radius:18px;
+    background:#151515;
+    border:1px solid #333;
+    color:white;
+    text-align:center;
+}
+
+#loginBox h1{
+    margin-bottom:8px;
+}
+
+#loginBox p{
+    color:#aaa;
+    margin-bottom:18px;
+}
+
+#name{
+    width:100%;
+    height:48px;
+    padding:0 14px;
+    border:1px solid #444;
+    border-radius:10px;
+    outline:none;
+    background:#222;
+    color:white;
+    font-size:16px;
+}
+
+#connect{
+    width:100%;
+    height:48px;
+    margin-top:12px;
+    border:0;
+    border-radius:10px;
+    background:#168cff;
+    color:white;
+    font-size:16px;
+    font-weight:bold;
+}
+
+#status{
+    margin-top:12px;
+    color:#aaa;
+    font-size:13px;
+}
+
+.hidden{
+    display:none!important;
+}
+
+#serverSettings{
+    margin-top:15px;
+}
+
+#serverUrl{
+    width:100%;
+    height:40px;
+    padding:0 10px;
+    border-radius:8px;
+    border:1px solid #333;
+    background:#0e0e0e;
+    color:#aaa;
+    font-size:12px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="game"></div>
+
+<div id="hud">
+
+    <div id="top">
+        <div id="myName">Jogador</div>
+        <div id="players">Jogadores: 0</div>
+    </div>
+
+    <div id="crosshair"></div>
+
+    <div id="lookArea">
+        <div id="lookHint">ARRASTE PARA OLHAR</div>
+    </div>
+
+    <div id="leftControls">
+        <div id="joystick">
+            <div id="stick"></div>
+        </div>
+    </div>
+
+    <button id="jump">↑</button>
+
+</div>
+
+<div id="login">
+
+    <div id="loginBox">
+
+        <h1>BLOCK ARENA</h1>
+
+        <p>
+            Arena 3D multiplayer
+        </p>
+
+        <input
+            id="name"
+            maxlength="16"
+            placeholder="Seu nome"
+            autocomplete="off"
+        >
+
+        <button id="connect">
+            ENTRAR NO JOGO
+        </button>
+
+        <div id="serverSettings">
+
+            <input
+                id="serverUrl"
+                placeholder="Servidor automático"
+                autocomplete="off"
+            >
+
+        </div>
+
+        <div id="status">
+            Desconectado
+        </div>
+
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+<script>
+
+/* =========================================================
+   CONFIGURAÇÃO
+   ========================================================= */
+
+const params =
+    new URLSearchParams(location.search);
+
+const DEFAULT_SERVER =
+    location.protocol === "https:"
+        ? "wss://" + location.host
+        : "ws://" + location.host;
+
+const SERVER_URL =
+    params.get("server") ||
+    DEFAULT_SERVER;
+
+
+/* =========================================================
+   THREE.JS
+   ========================================================= */
+
+let scene;
+let camera;
+let renderer;
+let clock;
+
+let localPlayer = null;
+
+const remotePlayers = new Map();
+
+let yaw = 0;
+let pitch = 0;
+
+let moveX = 0;
+let moveZ = 0;
+
+let velocityY = 0;
+let grounded = true;
+
+let socket = null;
+let connected = false;
+
+let myId = null;
+let myName = "";
+
+let sendTimer = 0;
+
+
+/* =========================================================
+   INICIAR CENA
+   ========================================================= */
+
+function init(){
+
+    scene = new THREE.Scene();
+
+    scene.background =
+        new THREE.Color(0x83c7ee);
+
+    scene.fog =
+        new THREE.Fog(
+            0x83c7ee,
+            35,
+            120
+        );
+
+    camera =
+        new THREE.PerspectiveCamera(
+            70,
+            innerWidth / innerHeight,
+            .05,
+            300
+        );
+
+    renderer =
+        new THREE.WebGLRenderer({
+            antialias:true
+        });
+
+    renderer.setSize(
+        innerWidth,
+        innerHeight
+    );
+
+    renderer.setPixelRatio(
+        Math.min(
+            devicePixelRatio,
+            2
+        )
+    );
+
+    renderer.shadowMap.enabled = true;
+
+    document
+        .getElementById("game")
+        .appendChild(renderer.domElement);
+
+    clock = new THREE.Clock();
+
+    createLights();
+    createWorld();
+    createLocalPlayer();
+    setupControls();
+
+    addEventListener(
+        "resize",
+        resize
+    );
+
+    animate();
+}
+
+
+/* =========================================================
+   LUZ
+   ========================================================= */
+
+function createLights(){
+
+    const hemi =
+        new THREE.HemisphereLight(
+            0xffffff,
+            0x52606a,
+            1.5
+        );
+
+    scene.add(hemi);
+
+    const sun =
+        new THREE.DirectionalLight(
+            0xffffff,
+            1.2
+        );
+
+    sun.position.set(
+        30,
+        50,
+        20
+    );
+
+    sun.castShadow = true;
+
+    scene.add(sun);
+}
+
+
+/* =========================================================
+   MUNDO
+   ========================================================= */
+
+function createWorld(){
+
+    const ground =
+        new THREE.Mesh(
+            new THREE.BoxGeometry(
+                80,
+                1,
+                80
+            ),
+            new THREE.MeshStandardMaterial({
+                color:0x4f7147
+            })
+        );
+
+    ground.position.y = -.5;
+
+    ground.receiveShadow = true;
+
+    scene.add(ground);
+
+    /* paredes */
+
+    createBlock(
+        0,4,-40,
+        80,8,1,
+        0x555555
+    );
+
+    createBlock(
+        0,4,40,
+        80,8,1,
+        0x555555
+    );
+
+    createBlock(
+        -40,4,0,
+        1,8,80,
+        0x555555
+    );
+
+    createBlock(
+        40,4,0,
+        1,8,80,
+        0x555555
+    );
+
+    /* obstáculos */
+
+    createBlock(
+        -12,2,-8,
+        8,4,5,
+        0x777777
+    );
+
+    createBlock(
+        13,2,-8,
+        7,4,5,
+        0x777777
+    );
+
+    createBlock(
+        -13,2,10,
+        6,4,8,
+        0x777777
+    );
+
+    createBlock(
+        13,2,11,
+        8,4,5,
+        0x777777
+    );
+
+    createBlock(
+        0,2,0,
+        5,4,5,
+        0x696969
+    );
+}
+
+
+function createBlock(
+    x,y,z,
+    sx,sy,sz,
+    color
+){
+
+    const mesh =
+        new THREE.Mesh(
+            new THREE.BoxGeometry(
+                sx,sy,sz
+            ),
+            new THREE.MeshStandardMaterial({
+                color:color
+            })
+        );
+
+    mesh.position.set(
+        x,y,z
+    );
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    scene.add(mesh);
+}
+
+
+/* =========================================================
+   PLAYER LOCAL
+   ========================================================= */
+
+function createLocalPlayer(){
+
+    localPlayer =
+        new THREE.Object3D();
+
+    localPlayer.position.set(
+        0,
+        1.7,
+        25
+    );
+
+    scene.add(localPlayer);
+
+    localPlayer.add(camera);
+
+    camera.position.set(
+        0,
+        0,
+        0
+    );
+}
+
+
+/* =========================================================
+   JOGADOR REMOTO
+   ========================================================= */
+
+function createRemotePlayer(
+    id,
+    data
+){
+
+    const group =
+        new THREE.Group();
+
+    const body =
+        new THREE.Mesh(
+            new THREE.BoxGeometry(
+                1,
+                1.5,
+                .7
+            ),
+            new THREE.MeshStandardMaterial({
+                color:0x2589d8
+            })
+        );
+
+    body.position.y = 1.05;
+
+    body.castShadow = true;
+
+    group.add(body);
+
+    const head =
+        new THREE.Mesh(
+            new THREE.SphereGeometry(
+                .38,
+                16,
+                16
+            ),
+            new THREE.MeshStandardMaterial({
+                color:0xf0bd91
+            })
+        );
+
+    head.position.y = 2.1;
+
+    head.castShadow = true;
+
+    group.add(head);
+
+    const labelCanvas =
+        document.createElement(
+            "canvas"
+        );
+
+    labelCanvas.width = 512;
+    labelCanvas.height = 128;
+
+    const ctx =
+        labelCanvas.getContext("2d");
+
+    ctx.fillStyle =
+        "rgba(0,0,0,.65)";
+
+    ctx.roundRect(
+        20,20,472,88,20
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle = "white";
+    ctx.font = "bold 48px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText(
+        data.name || "Jogador",
+        256,
+        64
+    );
+
+    const texture =
+        new THREE.CanvasTexture(
+            labelCanvas
+        );
+
+    const label =
+        new THREE.Sprite(
+            new THREE.SpriteMaterial({
+                map:texture,
+                transparent:true
+            })
+        );
+
+    label.scale.set(
+        4,
+        1,
+        1
+    );
+
+    label.position.y = 3.1;
+
+    group.add(label);
+
+    group.position.set(
+        data.x || 0,
+        data.y || 1.7,
+        data.z || 0
+    );
+
+    group.rotation.y =
+        data.yaw || 0;
+
+    scene.add(group);
+
+    remotePlayers.set(
+        id,
+        {
+            mesh:group,
+            targetX:group.position.x,
+            targetY:group.position.y,
+            targetZ:group.position.z,
+            targetYaw:group.rotation.y,
+            name:data.name || "Jogador"
+        }
+    );
+}
+
+
+/* =========================================================
+   REMOVER PLAYER
+   ========================================================= */
+
+function removeRemotePlayer(id){
+
+    const player =
+        remotePlayers.get(id);
+
+    if(!player)
+        return;
+
+    scene.remove(
+        player.mesh
+    );
+
+    remotePlayers.delete(id);
+}
+
+
+/* =========================================================
+   CONEXÃO
+   ========================================================= */
+
+function connect(){
+
+    const nameInput =
+        document.getElementById("name");
+
+    const serverInput =
+        document.getElementById("serverUrl");
+
+    myName =
+        nameInput.value.trim()
+        .slice(0,16);
+
+    if(!myName){
+
+        nameInput.focus();
+
+        setStatus(
+            "Digite seu nome."
+        );
+
+        return;
+    }
+
+    let url =
+        serverInput.value.trim();
+
+    if(!url)
+        url = SERVER_URL;
+
+    if(
+        url.startsWith("http://")
+    ){
+        url =
+            "ws://" +
+            url.substring(7);
+    }
+
+    if(
+        url.startsWith("https://")
+    ){
+        url =
+            "wss://" +
+            url.substring(8);
+    }
+
+    setStatus(
+        "Conectando..."
+    );
+
+    try{
+
+        socket =
+            new WebSocket(url);
+
+    }catch(error){
+
+        setStatus(
+            "Endereço do servidor inválido."
+        );
+
+        return;
+    }
+
+    socket.onopen = ()=>{
+
+        connected = true;
+
+        setStatus(
+            "Conectado!"
+        );
+
+        document
+            .getElementById("login")
+            .classList.add(
+                "hidden"
+            );
+
+        socket.send(
+            JSON.stringify({
+                type:"join",
+                name:myName
+            })
+        );
+    };
+
+    socket.onmessage = event => {
+
+        let message;
+
+        try{
+            message =
+                JSON.parse(event.data);
+        }catch{
+            return;
+        }
+
+        handleServerMessage(
+            message
+        );
+    };
+
+    socket.onclose = ()=>{
+
+        connected = false;
+
+        setStatus(
+            "Servidor desconectado."
+        );
+
+        document
+            .getElementById("login")
+            .classList.remove(
+                "hidden"
+            );
+    };
+
+    socket.onerror = ()=>{
+
+        setStatus(
+            "Erro ao conectar."
+        );
+    };
+}
+
+
+/* =========================================================
+   MENSAGENS DO SERVIDOR
+   ========================================================= */
+
+function handleServerMessage(msg){
+
+    if(msg.type === "welcome"){
+
+        myId = msg.id;
+
+        if(
+            msg.players
+        ){
+
+            msg.players.forEach(
+                player => {
+
+                    if(
+                        player.id !== myId
+                    ){
+
+                        createRemotePlayer(
+                            player.id,
+                            player
+                        );
+                    }
+                }
+            );
+        }
+
+        updatePlayerCount(
+            msg.count || 1
+        );
+
+        return;
+    }
+
+    if(msg.type === "playerJoined"){
+
+        if(msg.player.id !== myId){
+
+            createRemotePlayer(
+                msg.player.id,
+                msg.player
+            );
+        }
+
+        updatePlayerCount(
+            msg.count
+        );
+
+        return;
+    }
+
+    if(msg.type === "playerMoved"){
+
+        if(msg.id === myId)
+            return;
+
+        const remote =
+            remotePlayers.get(
+                msg.id
+            );
+
+        if(!remote){
+
+            createRemotePlayer(
+                msg.id,
+                msg
+            );
+
+            return;
+        }
+
+        remote.targetX =
+            msg.x;
+
+        remote.targetY =
+            msg.y;
+
+        remote.targetZ =
+            msg.z;
+
+        remote.targetYaw =
+            msg.yaw;
+
+        return;
+    }
+
+    if(msg.type === "playerLeft"){
+
+        removeRemotePlayer(
+            msg.id
+        );
+
+        updatePlayerCount(
+            msg.count
+        );
+
+        return;
+    }
+
+    if(msg.type === "count"){
+
+        updatePlayerCount(
+            msg.count
+        );
+    }
+}
+
+
+/* =========================================================
+   ENVIAR POSIÇÃO
+   ========================================================= */
+
+function sendPosition(delta){
+
+    if(!connected)
+        return;
+
+    if(!socket)
+        return;
+
+    if(
+        socket.readyState !==
+        WebSocket.OPEN
+    )
+        return;
+
+    sendTimer += delta;
+
+    if(sendTimer < .05)
+        return;
+
+    sendTimer = 0;
+
+    socket.send(
+        JSON.stringify({
+            type:"move",
+
+            x:localPlayer.position.x,
+            y:localPlayer.position.y,
+            z:localPlayer.position.z,
+
+            yaw:yaw,
+            pitch:pitch
+        })
+    );
+}
+
+
+/* =========================================================
+   ATUALIZAR PLAYERS REMOTOS
+   ========================================================= */
+
+function updateRemotePlayers(delta){
+
+    remotePlayers.forEach(
+        remote => {
+
+            remote.mesh.position.x +=
+                (
+                    remote.targetX -
+                    remote.mesh.position.x
+                ) *
+                Math.min(
+                    delta * 14,
+                    1
+                );
+
+            remote.mesh.position.y +=
+                (
+                    remote.targetY -
+                    remote.mesh.position.y
+                ) *
+                Math.min(
+                    delta * 14,
+                    1
+                );
+
+            remote.mesh.position.z +=
+                (
+                    remote.targetZ -
+                    remote.mesh.position.z
+                ) *
+                Math.min(
+                    delta * 14,
+                    1
+                );
+
+            let difference =
+                remote.targetYaw -
+                remote.mesh.rotation.y;
+
+            while(
+                difference > Math.PI
+            )
+                difference -=
+                    Math.PI * 2;
+
+            while(
+                difference < -Math.PI
+            )
+                difference +=
+                    Math.PI * 2;
+
+            remote.mesh.rotation.y +=
+                difference *
+                Math.min(
+                    delta * 12,
+                    1
+                );
+        }
+    );
+}
+
+
+/* =========================================================
+   MOVIMENTO
+   ========================================================= */
+
+function updateMovement(delta){
+
+    if(!localPlayer)
+        return;
+
+    const speed = 7;
+
+    /*
+       IMPORTANTE:
+
+       O movimento é calculado
+       usando o yaw da câmera.
+
+       Portanto:
+
+       joystick para frente
+       =
+       andar para onde a câmera olha.
+    */
+
+    const forward =
+        new THREE.Vector3(
+            0,
+            0,
+            -1
+        );
+
+    const right =
+        new THREE.Vector3(
+            1,
+            0,
+            0
+        );
+
+    forward.applyAxisAngle(
+        new THREE.Vector3(0,1,0),
+        yaw
+    );
+
+    right.applyAxisAngle(
+        new THREE.Vector3(0,1,0),
+        yaw
+    );
+
+    const movement =
+        new THREE.Vector3();
+
+    movement.addScaledVector(
+        forward,
+        moveZ
+    );
+
+    movement.addScaledVector(
+        right,
+        moveX
+    );
+
+    if(
+        movement.length() > 1
+    ){
+        movement.normalize();
+    }
+
+    localPlayer.position.x +=
+        movement.x *
+        speed *
+        delta;
+
+    localPlayer.position.z +=
+        movement.z *
+        speed *
+        delta;
+
+    /* gravidade */
+
+    velocityY -=
+        18 * delta;
+
+    localPlayer.position.y +=
+        velocityY * delta;
+
+    if(
+        localPlayer.position.y <= 1.7
+    ){
+
+        localPlayer.position.y =
+            1.7;
+
+        velocityY = 0;
+
+        grounded = true;
+    }
+
+    /* limite */
+
+    const limit = 36;
+
+    localPlayer.position.x =
+        Math.max(
+            -limit,
+            Math.min(
+                limit,
+                localPlayer.position.x
+            )
+        );
+
+    localPlayer.position.z =
+        Math.max(
+            -limit,
+            Math.min(
+                limit,
+                localPlayer.position.z
+            )
+        );
+
+    localPlayer.rotation.y =
+        yaw;
+
+    camera.rotation.x =
+        pitch;
+}
+
+
+/* =========================================================
+   PULO
+   ========================================================= */
+
+function jump(){
+
+    if(
+        grounded &&
+        localPlayer
+    ){
+
+        velocityY = 7;
+
+        grounded = false;
+    }
+}
+
+
+/* =========================================================
+   JOYSTICK
+   ========================================================= */
+
+function setupJoystick(){
+
+    const joystick =
+        document.getElementById(
+            "joystick"
+        );
+
+    const stick =
+        document.getElementById(
+            "stick"
+        );
+
+    let active = false;
+
+    const max = 43;
+
+    function update(e){
+
+        const rect =
+            joystick.getBoundingClientRect();
+
+        const centerX =
+            rect.left +
+            rect.width / 2;
+
+        const centerY =
+            rect.top +
+            rect.height / 2;
+
+        let dx =
+            e.clientX - centerX;
+
+        let dy =
+            e.clientY - centerY;
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+        if(distance > max){
+
+            dx =
+                dx / distance * max;
+
+            dy =
+                dy / distance * max;
+        }
+
+        stick.style.transform =
+            `translate(${dx}px,${dy}px)`;
+
+        /*
+           Frente do joystick = +moveZ
+
+           A câmera decide para qual
+           direção esse movimento aponta.
+        */
+
+        moveX =
+            dx / max;
+
+        moveZ =
+            -dy / max;
+    }
+
+    joystick.addEventListener(
+        "pointerdown",
+        e => {
+
+            active = true;
+
+            joystick.setPointerCapture(
+                e.pointerId
+            );
+
+            update(e);
+        }
+    );
+
+    joystick.addEventListener(
+        "pointermove",
+        e => {
+
+            if(active)
+                update(e);
+        }
+    );
+
+    function release(){
+
+        active = false;
+
+        moveX = 0;
+        moveZ = 0;
+
+        stick.style.transform =
+            "translate(0,0)";
+    }
+
+    joystick.addEventListener(
+        "pointerup",
+        release
+    );
+
+    joystick.addEventListener(
+        "pointercancel",
+        release
+    );
+}
+
+
+/* =========================================================
+   CONTROLE DE OLHAR
+   ========================================================= */
+
+function setupLook(){
+
+    const area =
+        document.getElementById(
+            "lookArea"
+        );
+
+    let active = false;
+
+    let lastX = 0;
+    let lastY = 0;
+
+    area.addEventListener(
+        "pointerdown",
+        e => {
+
+            active = true;
+
+            lastX = e.clientX;
+            lastY = e.clientY;
+
+            area.setPointerCapture(
+                e.pointerId
+            );
+        }
+    );
+
+    area.addEventListener(
+        "pointermove",
+        e => {
+
+            if(!active)
+                return;
+
+            const dx =
+                e.clientX -
+                lastX;
+
+            const dy =
+                e.clientY -
+                lastY;
+
+            /*
+               Arrastar para a direita
+               vira a câmera para a direita.
+
+               Arrastar para cima
+               olha para cima.
+            */
+
+            yaw -=
+                dx * .006;
+
+            pitch -=
+                dy * .006;
+
+            pitch =
+                Math.max(
+                    -1.3,
+                    Math.min(
+                        1.3,
+                        pitch
+                    )
+                );
+
+            lastX =
+                e.clientX;
+
+            lastY =
+                e.clientY;
+        }
+    );
+
+    function release(){
+
+        active = false;
+    }
+
+    area.addEventListener(
+        "pointerup",
+        release
+    );
+
+    area.addEventListener(
+        "pointercancel",
+        release
+    );
+}
+
+
+/* =========================================================
+   CONTROLES
+   ========================================================= */
+
+function setupControls(){
+
+    setupJoystick();
+    setupLook();
+
+    document
+        .getElementById("jump")
+        .addEventListener(
+            "pointerdown",
+            e => {
+
+                e.preventDefault();
+
+                jump();
+            }
+        );
+
+    document
+        .getElementById("connect")
+        .addEventListener(
+            "click",
+            connect
+        );
+
+    document
+        .getElementById("name")
+        .addEventListener(
+            "keydown",
+            e => {
+
+                if(e.key === "Enter")
+                    connect();
+            }
+        );
+}
+
+
+/* =========================================================
+   UI
+   ========================================================= */
+
+function setStatus(text){
+
+    document
+        .getElementById("status")
+        .textContent = text;
+}
+
+function updatePlayerCount(count){
+
+    document
+        .getElementById("players")
+        .textContent =
+        "Jogadores: " +
+        count;
+}
+
+
+/* =========================================================
+   RESIZE
+   ========================================================= */
+
+function resize(){
+
+    camera.aspect =
+        innerWidth /
+        innerHeight;
+
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(
+        innerWidth,
+        innerHeight
+    );
+}
+
+
+/* =========================================================
+   LOOP
+   ========================================================= */
+
+function animate(){
+
+    requestAnimationFrame(
+        animate
+    );
+
+    const delta =
+        Math.min(
+            clock.getDelta(),
+            .05
+        );
+
+    updateMovement(delta);
+
+    updateRemotePlayers(delta);
+
+    sendPosition(delta);
+
+    renderer.render(
+        scene,
+        camera
+    );
+}
+
+
+/* =========================================================
+   COMEÇAR
+   ========================================================= */
+
+init();
+
+</script>
+
+</body>
+</html>
